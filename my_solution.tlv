@@ -45,7 +45,11 @@
    
    // PC logic
    $pc[31:0] = >>1$next_pc;
-   $next_pc[31:0] = $reset ? 32'b0 : 32'b100 + $pc;
+   //$next_pc[31:0] = $reset ? 32'b0 : 32'b100 + $pc;
+   $next_pc[31:0] =
+       $reset ? 32'b0 :
+       $taken_br ? $br_tgt_pc :
+       32'b100 + $pc;
 
    // Instruction Memory
    //`READONLY_MEM($addr, $$read_data[31:0])
@@ -114,7 +118,17 @@
        $is_add ? $src1_value + $src2_value :
        32'b0; // Default
 
-
+   // Branch Logic
+   $taken_br =
+       $is_beq ? ($src1_value == $src2_value) :
+       $is_bne ? ($src1_value != $src2_value) :
+       $is_blt ? (($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+       $is_bge ? (($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31])) :
+       $is_bltu ? ($src1_value < $src2_value) :
+       $is_bgeu ? ($src1_value >= $src2_value) :
+       1'b0; // Default for non-branching instructions
+   
+   $br_tgt_pc[31:0] = $pc + $imm;
    
    // Suppress log warnings
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $rs2 $rs2_valid $funct3 $funct3_valid $opcode $imm_valid $imm)
