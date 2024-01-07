@@ -48,7 +48,8 @@
    //$next_pc[31:0] = $reset ? 32'b0 : 32'b100 + $pc;
    $next_pc[31:0] =
        $reset ? 32'b0 :
-       $taken_br ? $br_tgt_pc :
+       $taken_br || $is_jal ? $br_tgt_pc :
+       $is_jalr ? $jalr_tgt_pc : 
        32'b100 + $pc;
 
    // Instruction Memory
@@ -192,7 +193,11 @@
        1'b0; // Default for non-branching instructions
    
    $br_tgt_pc[31:0] = $pc + $imm;
-   
+
+   // Jump Logic
+   $jalr_tgt_pc[31:0] = $src1_value + $imm;
+
+
    // Suppress log warnings
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $rs2 $rs2_valid $funct3 $funct3_valid $opcode $imm_valid $imm)
    `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
