@@ -4,7 +4,7 @@
    
    m4_include_lib(['https://raw.githubusercontent.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/main/lib/risc-v_shell_lib.tlv'])
 
-	m4_test_prog()
+   m4_test_prog()
 
 \SV
    m4_makerchip_module   // (Expanded in Nav-TLV pane.)
@@ -191,8 +191,9 @@
    
    // Register File Read & Write
    //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd1_en, $rd1_index[4:0], $rd1_data, $rd2_en, $rd2_index[4:0], $rd2_data)
-   m4+rf(32, 32, $reset, $rd !== 32'b0 ? $rd_valid : 1'b0, $rd, $result, $rs1_valid, $rs1, $src1_value, $rs2_valid, $rs2, $src2_value)
+   m4+rf(32, 32, $reset, $rd !== 32'b0 ? $rd_valid : 1'b0, $rd, $is_load ? $ld_data : $result, $rs1_valid, $rs1, $src1_value, $rs2_valid, $rs2, $src2_value)
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
+   m4+dmem(32, 32, $reset, $result[6:2], $is_s_instr, $src2_value, $is_load, $ld_data[31:0])
    m4+cpu_viz()
 \SV
    endmodule
