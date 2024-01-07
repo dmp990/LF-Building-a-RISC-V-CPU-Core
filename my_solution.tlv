@@ -4,42 +4,12 @@
    
    m4_include_lib(['https://raw.githubusercontent.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/main/lib/risc-v_shell_lib.tlv'])
 
-
-
-   //---------------------------------------------------------------------------------
-   // /====================\
-   // | Sum 1 to 9 Program |
-   // \====================/
-   //
-   // Program to test RV32I
-   // Add 1,2,3,...,9 (in that order).
-   //
-   // Regs:
-   //  x12 (a2): 10
-   //  x13 (a3): 1..10
-   //  x14 (a4): Sum
-   // 
-   m4_asm(ADDI, x14, x0, 0)             // Initialize sum register a4 with 0
-   m4_asm(ADDI, x12, x0, 1010)          // Store count of 10 in register a2.
-   m4_asm(ADDI, x13, x0, 1)             // Initialize loop count register a3 with 0
-   // Loop:
-   m4_asm(ADD, x14, x13, x14)           // Incremental summation
-   m4_asm(ADDI, x13, x13, 1)            // Increment loop count by 1
-   m4_asm(BLT, x13, x12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
-   // Test result value in x14, and set x31 to reflect pass/fail.
-   m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
-   m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
-   //m4_asm(ADDI, x0, x1, 1)  // Add 1 to x0 (should not write as x0 is always 0)   
-   m4_asm_end()
-   m4_define(['M4_MAX_CYC'], 50)
-   //---------------------------------------------------------------------------------
-
+	m4_test_prog()
 
 \SV
    m4_makerchip_module   // (Expanded in Nav-TLV pane.)
    /* verilator lint_on WIDTH */
 \TLV
-   
    $reset = *reset;
    
    
@@ -51,42 +21,42 @@
        $taken_br || $is_jal ? $br_tgt_pc :
        $is_jalr ? $jalr_tgt_pc : 
        32'b100 + $pc;
-
+   
    // Instruction Memory
    //`READONLY_MEM($addr, $$read_data[31:0])
    `READONLY_MEM($pc, $$instr[31:0]);
-
+   
    // Decode Logic: Instruction Type
-   $is_i_instr = $instr[6:2] == 5'b00000 ||
-                 $instr[6:2] == 5'b00001 ||
-                 $instr[6:2] == 5'b00100 ||
-                 $instr[6:2] == 5'b00110 ||
-                 $instr[6:2] == 5'b11001;
+   $is_i_instr = $instr[6:2] ==? 5'b00000 ||
+                 $instr[6:2] ==? 5'b00001 ||
+                 $instr[6:2] ==? 5'b00100 ||
+                 $instr[6:2] ==? 5'b00110 ||
+                 $instr[6:2] ==? 5'b11001;
    
-   $is_r_instr = $instr[6:2] == 5'b01011 ||
-                 $instr[6:2] == 5'b01100 ||
-                 $instr[6:2] == 5'b01110 ||
-                 $instr[6:2] == 5'b10100;
+   $is_r_instr = $instr[6:2] ==? 5'b01011 ||
+                 $instr[6:2] ==? 5'b01100 ||
+                 $instr[6:2] ==? 5'b01110 ||
+                 $instr[6:2] ==? 5'b10100;
    
-   $is_s_instr = $instr[6:5] == 2'b01 &&
-                 ($instr[4:2] == 3'b000 ||
-                 $instr[4:2] == 3'b001);
+   $is_s_instr = $instr[6:5] ==? 2'b01 &&
+                 ($instr[4:2] ==? 3'b000 ||
+                 $instr[4:2] ==? 3'b001);
    
-   $is_b_instr = $instr[6:5] == 2'b11 &&
-                 $instr[4:2] == 3'b000;
+   $is_b_instr = $instr[6:5] ==? 2'b11 &&
+                 $instr[4:2] ==? 3'b000;
    
-   $is_j_instr = $instr[6:5] == 2'b11 &&
-                 $instr[4:2] == 3'b011;
+   $is_j_instr = $instr[6:5] ==? 2'b11 &&
+                 $instr[4:2] ==? 3'b011;
    
-   $is_u_instr = $instr[6:2] == 5'b0x101;
-
-
-  // Decode Logic: Instruction Fields
-   $rs1[5:0] = $instr[19:15];
-   $rs2[5:0] = $instr[24:20];
-   $rd[5:0] = $instr[11:7];
-   $funct3[3:0] = $instr[14:12];
-   $opcode[7:0] = $instr[6:0];
+   $is_u_instr = $instr[6:2] ==? 5'b0x101;
+   
+   
+   // Decode Logic: Instruction Fields
+   $rs1[4:0] = $instr[19:15];
+   $rs2[4:0] = $instr[24:20];
+   $rd[4:0] = $instr[11:7];
+   $funct3[2:0] = $instr[14:12];
+   $opcode[6:0] = $instr[6:0];
    
    $rs1_valid = $is_r_instr || $is_i_instr || $is_s_instr || $is_b_instr;
    $rs2_valid = $is_r_instr || $is_s_instr || $is_b_instr;
@@ -100,7 +70,7 @@
                 $is_u_instr ? { $instr[31], $instr[30:20], $instr[19:12], 12'b0 } :
                 $is_j_instr ? { {12{$instr[31]}}, $instr[19:12], $instr[20], $instr[30:25], $instr[24:21], 1'b0 } :
                              32'b0; // Default
-
+   
    // Decode Logic: Instruction
    $dec_bits[10:0] = { $instr[30], $funct3, $opcode };
    
@@ -136,8 +106,7 @@
    $is_and = $dec_bits ==? 11'b0_111_0110011;
    
    $is_load = $dec_bits ==? 11'bx_xxx_0000011; // Treat all loads same, assign based on opcode only
-
-
+   
    // Subexpressions needed by the ALU
    // Set if less than unsigned, Set if less than immediate unsigned
    $sltu_rslt[31:0] = { 31'b0, $src1_value < $src2_value };
@@ -179,9 +148,9 @@
                      { 31'b0, $src1_value[31] } ) :
        $is_sra ? $sra_rslt :
        $is_srai ? $srai_rslt :
+       $is_load || $is_s_instr ? $src1_value + $imm : // load/store otherwise do not utilize ALU, hence can use the ALU to calculate the address
        32'b0; // Default
-
-
+   
    // Branch Logic
    $taken_br =
        $is_beq ? ($src1_value == $src2_value) :
@@ -193,20 +162,33 @@
        1'b0; // Default for non-branching instructions
    
    $br_tgt_pc[31:0] = $pc + $imm;
-
+   
    // Jump Logic
    $jalr_tgt_pc[31:0] = $src1_value + $imm;
-
-
+   
+   // Addressing Memory
+   // the address is computed based on values from a source register
+   // and an offset (often zero) provided as an immediate
+   // addr = rs1 + imm
+   
+   // Loads
+   // load instructions take the form: LOAD rd, imm(rs1)
+   // uses the I-type instruction format
+   // rd <- DMem[addr] (wher addr = rs1 + imm)
+   
+   // Stores
+   // store instructions take the form: STORE rs2, imm(rs1)
+   // has its own the S-type instruction format
+   // DMem[addr] <= rs2 (wher addr = rs1 + imm)
+   
+   
    // Suppress log warnings
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $rs2 $rs2_valid $funct3 $funct3_valid $opcode $imm_valid $imm)
    `BOGUS_USE($is_beq $is_bne $is_blt $is_bge $is_bltu $is_bgeu $is_addi $is_add)
-   
-   
    // Assert these to end simulation (before Makerchip cycle limit).
-   *passed = 1'b0;
+   m4+tb()
    *failed = *cyc_cnt > M4_MAX_CYC;
-
+   
    // Register File Read & Write
    //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd1_en, $rd1_index[4:0], $rd1_data, $rd2_en, $rd2_index[4:0], $rd2_data)
    m4+rf(32, 32, $reset, $rd !== 32'b0 ? $rd_valid : 1'b0, $rd, $result, $rs1_valid, $rs1, $src1_value, $rs2_valid, $rs2, $src2_value)
